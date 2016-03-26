@@ -1,51 +1,47 @@
 """Qingcloud init cli
 
 Usage:
-    qinginit
+    qinginit init
     qinginit config id <access_key_id>
     qinginit config key <secret_access_key>
-    qigninit create <instance_type>
+    qinginit config zone <zone_id>
+    qinginit create default
+    qinginit create -f <file>
 
 Options:
-    -f, --file <config_file>
+    -v, --version  show verison
+    -h, --help show help document
 
 """
 
 from docopt import docopt
 import os
 import qingcloud.iaas
-import qingcloud.misc
 import time
 import yaml
 
 
 def init():
-    global home
-    home = os.getenv('HOME') + '/.config/qinginit'
-
-    if not os.path.isdir(home):
-        os.mkdir(home)
-    if not os.path.isfile(home + '/config.yml'):
-        open(home + '/config.yml', 'w+').close()
-
-    # tmpconfig = load_config()
-    # tmpconfig['zone'] = ''
-    # tmpconfig['access_key_id'] = ''
-    # tmpconfig['secret_access_key'] = ''
-    # save_config(tmpconfig)
-
+    if not os.path.isfile('config.yml'):
+        print('第一次运行qinginit,请参考当前目录下的config.yml文件配置修改参数')
+        from pkg_resources import resource_string
+        data = resource_string(__name__, 'example.yml')
+        with open('config.yml', 'w') as f:
+            f.write(str(data, encoding='utf-8'))
+            f.close()
     return load_config()
 
 
-def load_config():
-    with open(home + '/config.yml', 'r') as f:
+def load_config(file='config.yml'):
+    with open(file, 'r') as f:
         tmpconfig = yaml.load(f)
+        f.close()
     return tmpconfig
 
 
 def save_config(tmpconfig):
-    with open(home + '/config.yml', 'w') as f:
-        f = yaml.dump(tmpconfig, default_flow_style=False)
+    with open('config.yml', 'w') as f:
+        f.write(yaml.dump(tmpconfig, default_flow_style=False))
         f.close()
 
 
@@ -67,6 +63,12 @@ def config_secret_access_key(secret_access_key):
     save_config(tmpconfig)
 
 
+def print_example():
+    from pkg_resources import resource_string
+    data = resource_string(__name__, 'example.yml')
+    print(str(data, encoding='utf-8'))
+
+
 def check_job(response):
     if 'job_id' not in response:
         print('your job %s is finished' % (response['action']))
@@ -75,8 +77,7 @@ def check_job(response):
         for i in range(100):
             time.sleep(5)
             r = conn.describe_jobs(
-                jobs=[response['job_id']],
-                zone=config['zone']
+                jobs=[response['job_id']]
             )
             print('your job %s is %s' % (r['job_set'][0]['job_action'], r['job_set'][0]['status']))
             if r['job_set'][0]['status'] == 'successful':
@@ -86,8 +87,7 @@ def check_job(response):
 
 def get_eip(bandwidth):
     r = conn.allocate_eips(
-        bandwidth=bandwidth,
-        zone=config['zone']
+        bandwidth=bandwidth
     )
     # print(r)
     check_job(r)
@@ -95,40 +95,37 @@ def get_eip(bandwidth):
 
 
 def get_route():
-    r = conn.create_routers(
-        zone=config['zone']
-    )
+    r = conn.create_routers()
     # print(r)
     check_job(r)
     return r['routers']
 
 
-def get_vxnet(vxnet_name='test', vxnet_type=1):
+def get_vxnet(vxnet_name, vxnet_type=1):
     r = conn.create_vxnets(
         vxnet_name=vxnet_name,
-        vxnet_type=vxnet_type,
-        zone=config['zone']
+        vxnet_type=vxnet_type
     )
     # print(r)
     check_job(r)
     return r['vxnets']
 
 
-def get_instance(image_id='trustysrvx64f', instance_type='c1m1', vxnets=['vxnet-0'], login_passwd='Qingcloud123'):
+def get_instance(image_id, instance_type, login_passwd, vxnets=['vxnet-0'], ):
     r = conn.run_instances(
         image_id=image_id,
         instance_type=instance_type,
         vxnets=vxnets,
         login_mode='passwd',
-        login_passwd=login_passwd,
-        zone=config['zone']
+        login_passwd=login_passwd
     )
     # print(r)
     check_job(r)
     return r['instances']
 
 
-def get_rdb(vxnet, rdb_username, rdb_password, rdb_type, rdb_engine='mysql', engine_version='5.5', storage_size='10'):
+def get_rdb(vxnet, rdb_username, rdb_password, rdb_type, rdb_engine, engine_version,
+            storage_size):
     r = conn.create_rdb(
         vxnet=vxnet,
         rdb_username=rdb_username,
@@ -157,44 +154,122 @@ def get_cache(vxnet, cache_size, cache_type):
 def bind_ip_to_route(router, eip):
     r = conn.modify_router_attributes(
         router=router,
-        eip=eip,
-        zone=config['zone']
+        eip=eip
     )
     # print(r)
     check_job(r)
     return r
 
 
-def create(instance_type='c1m1', is_rdb=False, is_redis=False):
+def add_rules_to_security(protocol, action, val1):
+    r = conn.describe_security_groups()
+    check_job(r)
+    security_id = r['security_group_set'][0]['security_group_id']
+    rule = {
+        'protocol': protocol,
+        'priority': 10,
+        'action': action,
+        'val1': val1
+    }
+    r = conn.add_security_group_rules(
+        security_group=security_id,
+        rules=[rule]
+    )
+    check_job(r)
+    r = conn.apply_security_group(security_id)
+    check_job(r)
+    return r
+
+
+def create_by_file(file='config.yml'):
+    # set config file
+    config = load_config(file)
+    bandwidth = config['bandwidth']
+    ip_network = config['ip_network']
+    vxnet_name = config['vxnet_name']
+
+    image_id = config['image_id']
+    instance_type = config['instance_type']
+    login_passwd = config['login_passwd']
+
+    is_rdb = bool(config['is_rdb'])
+    rdb_username = config['rdb_username']
+    rdb_password = config['rdb_password']
+    rdb_type = config['rdb_type']
+    storage_size = config['storage_size']
+    rdb_engine = config['rdb_engine']
+    engine_version = config['engine_version']
+    is_cache = bool(config['is_cache'])
+    cache_size = config['cache_size']
+    cache_type = config['cache_type']
+
+    # begin create
     route = get_route()  # create route
-    vxnet = get_vxnet()  # create vxnet
+    vxnet = get_vxnet(vxnet_name)  # create vxnet
     join = conn.join_router(  # add vxnet to route
         vxnet=vxnet[0],
         router=route[0],
-        ip_network='192.168.100.0/24'
+        ip_network=ip_network
     )
-    print(join)
-    eip = get_eip(1)  # create eip
-    bind = bind_ip_to_route(route[0], eip[0])  # bind ip to route
+    eip = get_eip(bandwidth)  # create eip
+    bind_ip_to_route(route[0], eip[0])  # bind ip to route
     if is_rdb:
-        get_rdb(vxnet[0], 'Qingcloud', 'Qingcloud123', 1)  # create rdb
-    if is_redis:
-        get_cache(vxnet[0], 1, 'redis2.8.17')  # create cache
-    instance = get_instance(instance_type=instance_type, vxnets=vxnet)  # create instance
-    print(instance)
+        get_rdb(  # create rdb
+            vxnet=vxnet[0],
+            rdb_username=rdb_username,
+            rdb_password=rdb_password,
+            rdb_type=rdb_type,
+            storage_size=storage_size,
+            rdb_engine=rdb_engine,
+            engine_version=engine_version
+        )
+    if is_cache:
+        get_cache(  # create cache
+            vxnet=vxnet[0],
+            cache_size=cache_size,
+            cache_type=cache_type
+        )
+    instance = get_instance(  # create instance
+        image_id=image_id,
+        instance_type=instance_type,
+        vxnets=vxnet,
+        login_passwd=login_passwd
+    )
+
+    # add security rules
+    add_rules_to_security('tcp', 'accept', 80)
     print('创建完毕！')
 
 
 def main():
     arguments = docopt(__doc__, version="0.0.1")
-    global config, conn
+    global conn
     config = init()
     conn = qingcloud.iaas.connect_to_zone(
         config['zone'],
         config['access_key_id'],
         config['secret_access_key']
     )
-    # create('c1m1', True, True)
+
+    # begin main process
+    if arguments['config']:
+        if arguments['id']:
+            config_access_key_id(arguments['<access_key_id>'])
+        elif arguments['key']:
+            config_secret_access_key(arguments['<secret_access_key>'])
+        elif arguments['zone']:
+            config_zone(arguments['zone'])
+    elif arguments['init']:
+        from pkg_resources import resource_string
+        data = resource_string(__name__, 'example.yml')
+        with open('config.yml', 'w') as f:
+            f.write(str(data, encoding='utf-8'))
+            f.close()
+    elif arguments['create']:
+        if arguments['-f']:
+            create_by_file(arguments['<file>'])
+        elif arguments['default']:
+            create_by_file()
 
 
 if __name__ == '__main__':

@@ -21,13 +21,14 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     entry_points=entry_points,
-    requires=[
-    ],
     install_requires=[
         'docopt',
         'qingcloud-sdk',
         'pyyaml'
     ],
+    package_data={
+        '': ['*.yml'],
+    },
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
