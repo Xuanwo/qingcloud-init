@@ -1,3 +1,14 @@
+# 0.0.3
+
+## Features
+
+- Add router forward support
+
+## Fix
+
+- Fix check_job error while no job_id and action in response
+- Fix describe_instances return None while router not updated
+
 # 0.0.2
 
 ## Features
