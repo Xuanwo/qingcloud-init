@@ -1,3 +1,9 @@
+# 0.1.0
+
+## First release
+
+- Remove regardless files, and update version
+
 # 0.0.3
 
 ## Features

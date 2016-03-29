@@ -10,7 +10,7 @@ entry_points = {
 
 setup(
     name="qingcloud-init",
-    version="0.0.3",
+    version="0.1.0",
     url="https://xuanwo.org/",
     author="Xuanwo",
     author_email="xuanwo.cn@gmail.com",
@@ -38,6 +38,8 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Operating System :: Microsoft :: Windows',
         'Programming Language :: Python',
+        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5'
     ],
 )
