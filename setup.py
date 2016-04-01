@@ -10,7 +10,7 @@ entry_points = {
 
 setup(
     name="qingcloud-init",
-    version="0.1.1",
+    version="0.1.2",
     url="https://xuanwo.org/",
     author="Xuanwo",
     author_email="xuanwo.cn@gmail.com",

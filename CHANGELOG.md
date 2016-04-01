@@ -1,3 +1,13 @@
+# 0.1.2
+
+## Fixs
+
+- Finished all the data print
+
+## Breaking Change
+
+- change `get_instance` into `get_instances` to keep same with api
+
 # 0.1.1
 
 ## Features

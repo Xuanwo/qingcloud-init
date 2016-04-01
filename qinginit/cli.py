@@ -104,7 +104,7 @@ def get_vxnet(vxnet_type=1):
     return r['vxnets']
 
 
-def get_instance(image_id, instance_type, login_passwd, router, vxnets):
+def get_instances(image_id, instance_type, login_passwd, router, vxnets):
     r = conn.run_instances(
         image_id=image_id,
         instance_type=instance_type,
@@ -190,13 +190,13 @@ def add_rules_to_router(router, static_type, val1, val2, val3, val4, vxnet):
             'val4': val4
         }
     ]
-    print(statics)
+    # print(statics)
     r = conn.add_router_statics(
         router=router[0],
         statics=statics,
         vxnet=vxnet
     )
-    print(r)
+    # print(r)
     check_job(r)
     check_job(conn.update_routers(router))
     return r
@@ -254,7 +254,7 @@ def create_by_file(file='config.yml'):
             cache_type=cache_type
         )
 
-    instance = get_instance(  # create instance
+    instance = get_instances(  # create instance
         image_id=image_id,
         instance_type=instance_type,
         vxnets=vxnet,
@@ -279,32 +279,28 @@ def create_by_file(file='config.yml'):
 
 
 def show_data(data):
+    config = load_config()
     print('您的配置参数如下：')
 
     # eips
-    r = conn.describe_eips(data['eip'])
-    print('服务器公网ip地址： %s')
+    r = conn.describe_eips([data['eip']])
+    print('服务器公网ip地址： %s' % (r['eip_set'][0]['eip_addr']))
 
     # instance
     r = conn.describe_instances(data['instance'])
-    print('服务器用户名： %s')
-    print('服务器密码： %s')
+    print('服务器用户名： %s' % ('ubuntu'))
+    print('服务器密码： %s' % (config['login_passwd']))
 
     # rdb
     if 'rdb' in data:
-        r = conn.describe_rdbs(data['rdb'])
-        print('数据库内网地址： %s')
-        print('数据库用户名： %s')
-        print('数据库密码： %s')
-
-    # cache
-    if 'cache' in data:
-        r = conn.describe_caches(data['cache'])
-        print('缓存内网地址： %s')
+        r = conn.describe_rdbs([data['rdb']])
+        print('数据库内网地址： %s' % (r['rdb_set'][0]['master_ip']))
+        print('数据库用户名： %s' % (config['rdb_username']))
+        print('数据库密码： %s' % (config['rdb_password']))
 
 
 def main():
-    arguments = docopt(__doc__, version="0.1.1")
+    arguments = docopt(__doc__, version="0.1.2")
     global conn
     config = init()
     conn = qingcloud.iaas.connect_to_zone(
