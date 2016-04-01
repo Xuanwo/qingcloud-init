@@ -5,8 +5,7 @@ Usage:
     qinginit config id <access_key_id>
     qinginit config key <secret_access_key>
     qinginit config zone <zone_id>
-    qinginit create default
-    qinginit create -f <file>
+    qinginit create
 
 Options:
     -v, --version  show verison
@@ -87,29 +86,25 @@ def get_eip(bandwidth):
     r = conn.allocate_eips(
         bandwidth=bandwidth
     )
-    # print(r)
     check_job(r)
     return r['eips']
 
 
 def get_route():
     r = conn.create_routers()
-    # print(r)
     check_job(r)
     return r['routers']
 
 
-def get_vxnet(vxnet_name, vxnet_type=1):
+def get_vxnet(vxnet_type=1):
     r = conn.create_vxnets(
-        vxnet_name=vxnet_name,
         vxnet_type=vxnet_type
     )
-    # print(r)
     check_job(r)
     return r['vxnets']
 
 
-def get_instance(image_id, instance_type, login_passwd, router, vxnets=['vxnet-0']):
+def get_instance(image_id, instance_type, login_passwd, router, vxnets):
     r = conn.run_instances(
         image_id=image_id,
         instance_type=instance_type,
@@ -117,7 +112,6 @@ def get_instance(image_id, instance_type, login_passwd, router, vxnets=['vxnet-0
         login_mode='passwd',
         login_passwd=login_passwd
     )
-    # print(r)
     check_job(r)
     check_job(conn.update_routers(router))
     return r['instances']
@@ -134,7 +128,6 @@ def get_rdb(vxnet, rdb_username, rdb_password, rdb_type, rdb_engine, engine_vers
         engine_version=engine_version,
         storage_size=storage_size
     )
-    # print(r)
     check_job(r)
     return r['rdb']
 
@@ -145,7 +138,6 @@ def get_cache(vxnet, cache_size, cache_type):
         cache_size=cache_size,
         cache_type=cache_type
     )
-    # print(r)
     check_job(r)
     return r['cache_id']
 
@@ -155,7 +147,6 @@ def bind_ip_to_route(router, eip):
         router=router,
         eip=eip
     )
-    # print(r)
     check_job(r)
     return r
 
@@ -214,10 +205,11 @@ def add_rules_to_router(router, static_type, val1, val2, val3, val4, vxnet):
 def create_by_file(file='config.yml'):
     # set config file
     config = load_config(file)
+    # create data
+    data = {}
 
     bandwidth = config['bandwidth']
     ip_network = config['ip_network']
-    vxnet_name = config['vxnet_name']
     image_id = config['image_id']
     instance_type = config['instance_type']
     login_passwd = config['login_passwd']
@@ -226,10 +218,12 @@ def create_by_file(file='config.yml'):
 
     # begin create
     route = get_route()  # create route
-    vxnet = get_vxnet(vxnet_name)  # create vxnet
+    vxnet = get_vxnet()  # create vxnet
     join = add_vxnet_to_router(vxnet, route, ip_network)  # add vxnet to router
     eip = get_eip(bandwidth)  # create eip
     bind_ip_to_route(route[0], eip[0])  # bind ip to route
+    data['eip'] = eip[0]
+
     if is_rdb:
         # settings of rdb
         rdb_username = config['rdb_username']
@@ -239,7 +233,7 @@ def create_by_file(file='config.yml'):
         rdb_engine = config['rdb_engine']
         engine_version = config['engine_version']
 
-        get_rdb(  # create rdb
+        data['rdb'] = get_rdb(  # create rdb
             vxnet=vxnet[0],
             rdb_username=rdb_username,
             rdb_password=rdb_password,
@@ -254,7 +248,7 @@ def create_by_file(file='config.yml'):
         cache_size = config['cache_size']
         cache_type = config['cache_type']
 
-        get_cache(  # create cache
+        data['cache'] = get_cache(  # create cache
             vxnet=vxnet[0],
             cache_size=cache_size,
             cache_type=cache_type
@@ -267,6 +261,7 @@ def create_by_file(file='config.yml'):
         login_passwd=login_passwd,
         router=route
     )
+    data['instance'] = instance
 
     # add security rules, we can add in console
     # add_rules_to_security('tcp', 'accept', 80)
@@ -277,11 +272,39 @@ def create_by_file(file='config.yml'):
     instance_ip = r['instance_set'][0]['vxnets'][0]['private_ip']
     add_rules_to_router(route, 1, '22', instance_ip, '22', 'tcp', vxnet[0])
     add_rules_to_router(route, 1, '80', instance_ip, '80', 'tcp', vxnet[0])
+
     print('创建完毕！')
+
+    return data
+
+
+def show_data(data):
+    print('您的配置参数如下：')
+
+    # eips
+    r = conn.describe_eips(data['eip'])
+    print('服务器公网ip地址： %s')
+
+    # instance
+    r = conn.describe_instances(data['instance'])
+    print('服务器用户名： %s')
+    print('服务器密码： %s')
+
+    # rdb
+    if 'rdb' in data:
+        r = conn.describe_rdbs(data['rdb'])
+        print('数据库内网地址： %s')
+        print('数据库用户名： %s')
+        print('数据库密码： %s')
+
+    # cache
+    if 'cache' in data:
+        r = conn.describe_caches(data['cache'])
+        print('缓存内网地址： %s')
 
 
 def main():
-    arguments = docopt(__doc__, version="0.0.3")
+    arguments = docopt(__doc__, version="0.1.1")
     global conn
     config = init()
     conn = qingcloud.iaas.connect_to_zone(
@@ -305,10 +328,7 @@ def main():
             f.write(str(data, encoding='utf-8'))
             f.close()
     elif arguments['create']:
-        if arguments['-f']:
-            create_by_file(arguments['<file>'])
-        elif arguments['default']:
-            create_by_file()
+        show_data(create_by_file())
 
 
 if __name__ == '__main__':

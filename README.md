@@ -24,3 +24,29 @@ Options:
     -v, --version  show verison
     -h, --help show help document
 ```
+
+### init
+
+```
+qinginit init
+```
+
+This command will create `config.yml` in current directory, you can modify this file to set your own environment.
+
+### config
+
+```
+qinginit config id abcdefg
+qinginit config key abcdefghijklmn
+qinginit config zone pek2
+```
+
+Your can set these value by `config` command.
+
+### create
+
+```
+qinginit create
+```
+
+Create your own environment from `config.yml` file.

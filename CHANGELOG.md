@@ -1,3 +1,18 @@
+# 0.1.1
+
+## Features
+
+- Print environment data after create
+
+## Fixs
+
+- Remove print line.
+- Exampleyml set rdb & cache default to 0
+
+## Breaking Change
+
+- Remove `create default` and `-f` option, just keep `create`
+
 # 0.1.0
 
 ## First release
