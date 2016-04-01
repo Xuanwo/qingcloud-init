@@ -1,7 +1,7 @@
 # qingcloud-init
 The script to setup qingcloud environment.
 
-<script type="text/javascript" src="https://asciinema.org/a/c4di0phs0mpi4eudxxo5ede20.js" id="asciicast-c4di0phs0mpi4eudxxo5ede20" async></script>
+[![asciicast](https://asciinema.org/a/c4di0phs0mpi4eudxxo5ede20.png)](https://asciinema.org/a/c4di0phs0mpi4eudxxo5ede20)
 
 ## Setup
 
