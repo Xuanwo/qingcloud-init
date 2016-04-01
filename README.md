@@ -17,8 +17,7 @@ Usage:
     qinginit config id <access_key_id>
     qinginit config key <secret_access_key>
     qinginit config zone <zone_id>
-    qinginit create default
-    qinginit create -f <file>
+    qinginit create
 
 Options:
     -v, --version  show verison
